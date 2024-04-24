@@ -1,6 +1,36 @@
 import json
 import sim
 
+class static_bot:
+
+    def __init__(self, sim):
+        self.sim = sim
+
+        self.sensor_angles = [0., 1./3, 2./3]
+        self.sensor_distances = [1,1,1]
+
+        self.score = 0
+        self.position = [0,0]
+
+    def get_move(self):
+
+        move_x = 0
+        move_y = 0
+
+        for i in range(len(self.sensor_positions)):
+            theta = self.sensor_angles[i]
+            d = self.sensor_distances[i]
+
+            x = "DO SOME TRIG" + self.position[0]
+            y = "DO SOME TRIG" + self.position[1]
+
+            gradient_val = self.sim.get_gradient_score(x, y)
+
+            move_dist += gradient_val * d
+
+
+
+
 class organism:
 
     def __init__(self, sim):
@@ -79,7 +109,7 @@ class organism:
                     stack_heights[h] -= 1
                     if stack_heights[h] == 0:
                         to_remove.append(h)
-                        substr_ends[h] = i
+                        substr_ends[h] = i + 1
 
             # clean up finished stacks
             for h in to_remove:
@@ -109,8 +139,6 @@ class organism:
         for c in self.state_subtree_coords:
             subtree = self.get_clean_subtree(c)
             new_state_vals.append(self.evaluate_tree(subtree, current_vals))
-
-
 
         #move = self.evaluate_tree(tree)
 
@@ -151,4 +179,5 @@ class organism:
 if __name__ == "__main__":
 
     g = organism(None)
-    print(g.get_clean_subtree('][[1][0]]', [1,7]))
+    #print(g.get_clean_subtree('][[1][0]]', [1,7]))
+
