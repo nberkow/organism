@@ -9,7 +9,7 @@ class sim:
     def randomly_generate_genome(self, steps):
         pass
 
-    def linear_score(self, x):
+    def gradient_score(self, x, y):
         return(x)
     
     def generate(self, n):
