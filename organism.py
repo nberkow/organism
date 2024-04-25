@@ -1,8 +1,4 @@
 import json
-import sim
-
-
-
 
 class organism:
 
