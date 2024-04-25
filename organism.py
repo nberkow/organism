@@ -1,33 +1,6 @@
 import json
 import sim
 
-class static_bot:
-
-    def __init__(self, sim):
-        self.sim = sim
-
-        self.sensor_angles = [0., 1./3, 2./3]
-        self.sensor_distances = [1,1,1]
-
-        self.score = 0
-        self.position = [0,0]
-
-    def get_move(self):
-
-        move_x = 0
-        move_y = 0
-
-        for i in range(len(self.sensor_positions)):
-            theta = self.sensor_angles[i]
-            d = self.sensor_distances[i]
-
-            x = "DO SOME TRIG" + self.position[0]
-            y = "DO SOME TRIG" + self.position[1]
-
-            gradient_val = self.sim.get_gradient_score(x, y)
-
-            move_dist += gradient_val * d
-
 
 
 
