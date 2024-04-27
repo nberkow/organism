@@ -1,9 +1,10 @@
 import math
 import numpy as np
 
-class static_bot:
+class genome_bot:
 
-    def __init__(self, sim, name, pos=[0,0]):
+    def __init__(self, sim, name, pos=[0,0], genome=""):
+
         self.sim = sim
         self.name = name
 
@@ -12,18 +13,46 @@ class static_bot:
 
         self.score = 0
         self.position = pos
+        self.genome = genome
 
         self.pos_log = {'x' : [self.position[0]],
                         'y' : [self.position[1]],
                         's' : [self.sim.gradient_score(self.position[0], self.position[1])]}
 
+    def evaluate_int_as_bin(self, v):
+        return(str(v),2)
+
+    def evaluate_tree(self, tree, values):
+        """
+        recursively evaluate a tree as nested list
+        - the value of a list is the sum mod 1 of all the elements
+        - leaves contain integers. the value of a leaf is the value element at that positions
+
+        e.g.
+        values = [0.5,0.6]
+        tree = [[0],[[1],[0]]]
+
+        sublists:
+        [0] = 0.5
+        [[1],[0]] = (0.6 + 0.5) % 1 = 0.1
+
+        full calculation:
+        (0.5 + 0.1) % 1 = 0.6
+        """
+
+        sum = 0
+        for e in tree:
+            if type(e) == int:
+                b = self.evaluate_int_as_bin(e)
+                sum += values[tree[b % len(tree)]]
+            elif type(e) == list:
+                sum += self.evaluate_tree(e)
+        return(sum % 1)
+    
     def get_move(self):
 
-        move_x = 0
-        move_y = 0
         current_gradient_val = self.sim.gradient_score(self.position[0], self.position[1])
-
-        print(f"move from:\t{self.position[0]}\t{self.position[1]}")
+        sensor_values = []
 
         for i in range(len(self.sensor_angles)):
             theta = self.sensor_angles[i] * 2 * math.pi
@@ -34,19 +63,14 @@ class static_bot:
 
             gradient_val = self.sim.gradient_score(x, y)
             gradient_diff = gradient_val - current_gradient_val
+            sensor_values.append(gradient_diff)
 
-            #print(f"{x:.02}\t{y:.02}\t{gradient_val:.06}\t{gradient_diff:.06}")
+        values = self.sensor_angles + self.sensor_distances + sensor_values
+        rho = self.evaluate_tree(self.genome, values)
 
-            delta_x = gradient_diff * np.cos(theta)
-            delta_y = gradient_diff * np.sin(theta)
+        move_x = .1 * np.cos(rho) + self.position[0]
+        move_y = .1 * np.sin(rho) + self.position[1]
 
-            #print(f"grad diff: {gradient_diff:.06}\nangle %: {self.sensor_angles[i]}")
-            #print(f"dx: {delta_x:.02}\ndy: {delta_y:.02}")
-
-            move_x += delta_x
-            move_y += delta_y
-
-        #print(f"move x: {move_x:.02}\nmove y: {move_y:.02}")
         return(move_x, move_y)
     
     
@@ -60,3 +84,7 @@ class static_bot:
         self.pos_log['x'].append(new_x)
         self.pos_log['y'].append(new_y)
         self.pos_log['s'].append(self.sim.gradient_score(new_x, new_y))
+
+
+
+
