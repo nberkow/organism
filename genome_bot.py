@@ -3,7 +3,7 @@ import numpy as np
 
 class genome_bot:
 
-    def __init__(self, sim, name, pos=[0,0], genome=""):
+    def __init__(self, sim, name, pos=[0,0], genome="", tree=[]):
 
         self.sim = sim
         self.name = name
@@ -14,13 +14,11 @@ class genome_bot:
         self.score = 0
         self.position = pos
         self.genome = genome
+        self.tree = tree
 
         self.pos_log = {'x' : [self.position[0]],
                         'y' : [self.position[1]],
                         's' : [self.sim.gradient_score(self.position[0], self.position[1])]}
-
-    def evaluate_int_as_bin(self, v):
-        return(str(v),2)
 
     def evaluate_tree(self, tree, values):
         """
@@ -29,9 +27,9 @@ class genome_bot:
         - leaves contain integers. the value of a leaf is the value element at that positions
 
         e.g.
-        values = [0.5,0.6]
-        tree = [[0],[[1],[0]]]
-
+        values = [0.5, 0.6]
+        tree = [[0], [[1],[0]]]
+ 
         sublists:
         [0] = 0.5
         [[1],[0]] = (0.6 + 0.5) % 1 = 0.1
@@ -41,12 +39,11 @@ class genome_bot:
         """
 
         sum = 0
-        for e in tree:
-            if type(e) == int:
-                b = self.evaluate_int_as_bin(e)
-                sum += values[tree[b % len(tree)]]
-            elif type(e) == list:
-                sum += self.evaluate_tree(e)
+        if type(tree) == int:
+            sum += values[tree % len(values)]
+        elif type(tree) == list:
+            for e in tree:
+                sum += self.evaluate_tree(e, values)
         return(sum % 1)
     
     def get_move(self):
@@ -66,13 +63,13 @@ class genome_bot:
             sensor_values.append(gradient_diff)
 
         values = self.sensor_angles + self.sensor_distances + sensor_values
-        rho = self.evaluate_tree(self.genome, values)
+        rho = self.evaluate_tree(self.tree, values) * 2 * math.pi
 
-        move_x = .1 * np.cos(rho) + self.position[0]
-        move_y = .1 * np.sin(rho) + self.position[1]
-
+        move_x = .1 * np.cos(rho)
+        move_y = .1 * np.sin(rho)
         return(move_x, move_y)
-    
+        
+
     
     def make_move(self):
 

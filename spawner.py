@@ -2,6 +2,8 @@ from genome_bot import genome_bot
 from static_bot import static_bot
 import random
 import json
+import re
+import numpy as np
 
 class spawner:
 
@@ -25,60 +27,37 @@ class spawner:
         pos = self.get_random_pos()
         return(static_bot(self.sim, name, pos))
 
-    def sequence_to_tree(self, sequence):
-        
-        t = sequence.replace("][", "],[")
-        t = t.replace("1[", "1,[")
-        t = t.replace("1[", "0,[")
-        t = t.replace("]1", "],1")
-        t = t.replace("]0", "],0")
-        tree = json.loads(t)
-        return(tree)
+    def sequence_to_tree(self, s):
+
+        def parse_inner_list(s, index):
+            result = []
+            num = ''
+            while index < len(s):
+                char = s[index]
+                if char.isdigit():
+                    num += char
+                elif char == '[':
+                    sublist, index = parse_inner_list(s, index + 1)
+                    result.append(sublist)
+                elif char == ']':
+                    if num:
+                        result.append(int(num, 2))
+                        num = ''
+                    return result, index
+                elif char == ',':
+                    if num:
+                        result.append(int(num, 2))
+                        num = ''
+                index += 1
+            return result, index
+
+        result, _ = parse_inner_list(s, 0)
+        return result
     
-    def get_clean_subtree(self, sequence, coords):
+    def spawn_genome_bot(self, genome, name):
 
-        """
-        get the largest fully enclosed sublist
-        """
-
-        if not coords[1] - coords[0] > 1 or coords[1] > len(sequence):
-            return('[]')
-
-        rough_subseq = '[' + sequence[coords[0]:coords[1]] + ']'              
-        stack_heights = {}  # track running differences of opens and closes
-        substr_ends   = {}  # track the index where each stack becomes empty
-
-        # iterate over the sequences, updating each potential subsequence
-        for i in range(len(rough_subseq)):
-
-            # create a new potential start for an open bracket
-            if rough_subseq[i] == '[':
-                stack_heights[i] = 0
-
-            # update existing stacks
-            for h in stack_heights:
-                to_remove = []
-
-                # If the current character is an open bracket 
-                if rough_subseq[i] == '[':  
-                    stack_heights[h] += 1
-
-                # If the current character is an close bracket
-                if rough_subseq[i] == ']':
-                    stack_heights[h] -= 1
-                    if stack_heights[h] == 0:
-                        to_remove.append(h)
-                        substr_ends[h] = i + 1
-
-            # clean up finished stacks
-            for h in to_remove:
-                stack_heights.pop(h, None)
-
-        max_len = 0
-        max_len_substr = ''
-        for s in substr_ends:
-            if max_len < substr_ends[s] - s:
-                max_len = substr_ends[s] - s
-                max_len_substr = rough_subseq[s:substr_ends[s]]
-        return(max_len_substr)
+        pos = self.get_random_pos()
+        tree = self.sequence_to_tree(genome)
+        bot = genome_bot(self.sim, name, pos, genome, tree)
+        return(bot)
 
