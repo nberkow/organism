@@ -1,13 +1,12 @@
 from spawner import spawner
-from util import get_clean_subtree, make_random_sequence, get_random_genomes
+from util import *
 import random
 import plotly.express as px
 import plotly.graph_objects as go
-from scipy.stats import multivariate_normal
 
 class sim:
 
-    def __init__(self, name, x_range=[-1,1], y_range=[-1,1], seed=11):
+    def __init__(self, name, raw_genome, gradient, x_range=[-1,1], y_range=[-1,1], seed=11, means=1):
 
         self.name = name
         self.organisms = []
@@ -16,33 +15,13 @@ class sim:
 
         random.seed(seed)
 
-        self.gradient = []
-        self.weights = []
-        self.define_gradient_and_weights()
-
+        self.gradient, self.weights = gradient
         self.gradient_fig = go.Figure()
         self.curve_fig = go.Figure()
 
-    def define_gradient_and_weights(self, means=1):
-
-        for i in range(means):
-            x_mean = random.random() * (self.x_range[1] - self.x_range[0]) + self.x_range[0]
-            y_mean = random.random() * (self.y_range[1] - self.y_range[0]) + self.y_range[0]
-            print(f"{x_mean}\t{y_mean}")
-            dist = multivariate_normal([x_mean, y_mean])
-            self.gradient.append(dist)
-
-        denom = 0.
-        raw = []
-
-        for i in range(means):
-            r = random.random()
-            raw.append(r)
-            denom += r
-        
-        for r in raw:
-            self.weights.append(r/denom)
-        print(self.weights)
+        self.raw_genome = raw_genome
+        self.genome = get_clean_subtree(raw_genome)
+        self.tree = sequence_to_tree(self.genome)
 
     def add_countour(self, steps=100):
 
@@ -142,37 +121,53 @@ class sim:
 
         self.curve_fig.write_image(f"figures/{fname}.png")
 
+def run_one_sim(args):
+    raw_genome, name, gradient, i = args
+
+    print(f"trying:\n{raw_genome}")
+
+    s = sim(name, raw_genome, gradient)
+    s.add_countour()
+
+    w = spawner(s)
+
+    for j in range(200):
+        b = w.spawn_genome_bot(f"genome_bot_{i}_{j}")
+        s.add_organism(b)
+
+    s.run(400)
+    top_scorers = s.get_organisms_to_plot(20)
+
+    s.plot_paths(top_scorers, f"sim_{i}_gradient")
+    s.plot_score_curves(top_scorers, f"sim_{i}_score_curves")
+
+    run_stats = summarize_run(s.organisms)
+
+    return(run_stats, name)
+
 if __name__ == "__main__":
 
-    genomes = get_random_genomes(5)
+    x_range = [-1,1]
+    y_range = [-1,1]
+    means = 1
+    gradient = define_gradient_and_weights(x_range, y_range, means)
+
+    genomes = get_random_raw_genomes(5)
+    
     summary = []
     i = 0
+    
+    all_stats = {}
 
     for g in genomes:
-        print(f"trying:\n{g}")
-
-        sim_summary = {"genome" : g}
-
-        s = sim(f"simulation_{i}")
-        s.add_countour()
-
-        w = spawner(s)
-
-        for j in range(100):
-            b = w.spawn_genome_bot(g, f"genome_bot_{i}_{j}")
-            s.add_organism(b)
-
-        s.run(20)
-        top_scorers = s.get_organisms_to_plot(10)
-
-        s.plot_paths(top_scorers, f"sim_{i}_gradient")
-        s.plot_score_curves(top_scorers, f"sim_{i}_score_curves")
-
+        name = f"simulation_{i}"
+        run_stats, name = run_one_sim([g, name, gradient, i])
+        summary.append([run_stats, name])
         i += 1
 
+    all_stats = {}
+    for x in summary:
+        run_stats, name = x
+        all_stats[name] = run_stats
 
-
-
-
-
-
+    plot_run_summary(all_stats, "all_stats")

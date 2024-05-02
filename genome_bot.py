@@ -3,7 +3,7 @@ import numpy as np
 
 class genome_bot:
 
-    def __init__(self, sim, name, pos=[0,0], genome="", tree=[]):
+    def __init__(self, sim, name, pos=[0,0]):
 
         self.sim = sim
         self.name = name
@@ -13,8 +13,9 @@ class genome_bot:
 
         self.score = 0
         self.position = pos
-        self.genome = genome
-        self.tree = tree
+        self.raw_genome = self.sim.raw_genome
+        self.genome = self.sim.genome
+        self.tree = self.sim.tree
 
         self.pos_log = {'x' : [self.position[0]],
                         'y' : [self.position[1]],
@@ -65,11 +66,9 @@ class genome_bot:
         values = self.sensor_angles + self.sensor_distances + sensor_values
         rho = self.evaluate_tree(self.tree, values) * 2 * math.pi
 
-        move_x = .1 * np.cos(rho)
-        move_y = .1 * np.sin(rho)
+        move_x = .01 * np.cos(rho)
+        move_y = .01 * np.sin(rho)
         return(move_x, move_y)
-        
-
     
     def make_move(self):
 
