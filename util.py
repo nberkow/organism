@@ -120,36 +120,12 @@ def plot_run_summary(run_stats, name):
 
         fig.add_trace(go.Bar(
             name=r,
-            x=['Score Diff', 'Max Score Reached'], y=y_vals,
+            x=['y = Avg - Starting', 'y = Best - Starting'], y=y_vals,
             error_y=dict(type='data', array=y_std)
         ))
 
     fig.update_layout(barmode='group')
     fig.write_image(f"figures/summary_{name}.png")
-
-def define_gradient_and_weights(x_range, y_range, means=1):
-        
-        gradient = []
-        weights = []
-
-        for i in range(means):
-            x_mean = random.random() * (x_range[1] - x_range[0]) + x_range[0]
-            y_mean = random.random() * (y_range[1] - y_range[0]) + y_range[0]
-            dist = multivariate_normal([x_mean, y_mean])
-            gradient.append(dist)
-
-        denom = 0.
-        raw = []
-
-        for i in range(means):
-            r = random.random()
-            raw.append(r)
-            denom += r
-        
-        for r in raw:
-            weights.append(r/denom)
-
-        return(gradient, weights)
 
 def sequence_to_tree(s):
 
@@ -178,4 +154,122 @@ def sequence_to_tree(s):
     result, _ = parse_inner_list(s, 0)
     return result
 
+def select_surviving_simulations(bot_stats, top_percent=.1):
+
+    selected_sims = {}
+    top_n = int(top_percent * len(bot_stats))
+
+    bots_by_best_score = {}
+    bots_by_average_score = {}
+
+    for sim_name in bot_stats:
+        stats = bot_stats[sim_name]
+
+        best_score = stats["mean_diff"]
+        bots_by_best_score[best_score] = sim_name
+
+        avg_score = stats["mean_max"]
+        bots_by_average_score[avg_score] = sim_name
+
+    selected_best = sorted(list(bots_by_best_score.keys()), reverse=True)[0:top_n]
+    selected_avg  = sorted(list(bots_by_average_score.keys()), reverse=True)[0:top_n]
+
+    for v in selected_best:
+        sim_name = bots_by_best_score[v]
+        selected_sims[sim_name] = bot_stats[sim_name]
+
+    for v in selected_avg:
+        sim_name = bots_by_average_score[v]
+        selected_sims[sim_name] = bot_stats[sim_name]
+
+    return(selected_sims)
+
+
+def define_gradient_and_weights(x_range, y_range, means=1):
+
+    """
+    Create a gradient as list of weighted bivariate normal distributions
+
+    inputs:
+    - x_range - two element list definine the range where the mean can be placed
+    - y_range - two element list definine the range where the mean can be placed
+    - means - the number of means to create, default 1
+
+    outputs:
+    - gradient - a list of distribution objects
+    - weights - a list of weights summing to one
+    """
+        
+    gradient = []
+    weights = []
+
+    for i in range(means):
+        x_mean = random.random() * (x_range[1] - x_range[0]) + x_range[0]
+        y_mean = random.random() * (y_range[1] - y_range[0]) + y_range[0]
+        dist = multivariate_normal([x_mean, y_mean])
+        gradient.append(dist)
+
+    denom = 0.
+    raw = []
+
+    for i in range(means):
+        r = random.random()
+        raw.append(r)
+        denom += r
+    
+    for r in raw:
+        weights.append(r/denom)
+
+    return(gradient, weights)
+
+
+def gradient_score(gradients, weights, x, y):
+
+    """
+    calculate a gradient score at specific x,y position
+
+    inputs:
+    - gradient - a list of distribution objects
+    - weights - a list of weights summing to one
+    """
+
+    score = 0
+    for i in range(len(gradients)):
+        score += gradients[i].pdf([x,y]) * weights[i]
+    return(score)
+
+
+def make_countour_plot(gradient, weights, x_range, y_range, steps=100):
+
+    """
+    create a contour plot representing a gradient
+
+    return the plot object
+    
+    """
+
+    gradient_fig = go.Figure()
+    x_abs = x_range[1] - x_range[0]
+    y_abs = y_range[1] - y_range[0]
+
+    x_vals = []
+    y_vals = []
+    first = True
+
+    z = []
+    for i in range(steps):
+        row = []
+        y = (y_abs/steps) * i + y_range[0] 
+        y_vals.append(y)
+        for j in range(steps):
+            x = (x_abs/steps) * j + x_range[0]
+            p = gradient_score(gradient, weights, x, y)
+            row.append(p)
+            if first:
+                x_vals.append(x)
+        first = False
+        z.append(row)
+    
+    gradient_fig.add_trace(go.Contour(x=x_vals, y=y_vals, z=z, contours_coloring='heatmap'))
+    return(gradient_fig)
 
