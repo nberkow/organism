@@ -1,85 +1,165 @@
 import random
+import numpy as np
 from util import *
 from genome_sim import genome_sim
 from spawner import spawner
+from sim_visualizer import sim_visualizer
 from multiprocessing import Pool
+from static_bot import static_bot
+from genome_bot import genome_bot
 
 class evo_sim:
 
-    def __init__(self):
+    def __init__(self, n_genomes, individuals):
 
-        random.seed(11)
+        self.genome_sim_iterations = 400
+        self.n_genomes = n_genomes
 
         self.x_range = [-1,1]
         self.y_range = [-1,1]
 
-        # Calculate re-usable gradient
+        # Calculate the gradient used for all sims
         print("building gradients")
-        self.gradients_means = 1
-        self.gradient, self.weights = define_gradient_and_weights(self.x_range, self.y_range, self.gradients_means)
+        self.gradient_means = 1
+        self.gradient, self.weights = self.define_gradient_and_weights(self.gradient_means, self.x_range, self.y_range)
 
         # Make raw genomes as random character strings
         print("making raw genomes")
-        self.starting_genomes = get_random_raw_genomes(20)
-        self.individuals = 10
+        self.raw_genome_length = 1000
+        self.min_length = 20
+        self.char_freq = [.25, .25, .25, .25]
+        self.starting_genomes = self.get_random_raw_genomes(self.n_genomes, self.raw_genome_length, self.char_freq, self.min_length)
+        self.individuals = individuals
 
-    def plot_gradient(self):
-        gradient_fig = make_countour_plot(self.gradient, self.weights, self.x_range, self.y_range)
-        gradient_fig.write_image(f"figures/gradient_alone.png")
+        # track the best scoring genomes across all runs and make new generations
+        self.spawner = spawner(self)
 
-    def run_one_genome_sim(self, s):
+        # visualize simulation results
+        self.sim_visualizer = sim_visualizer(self)
+        self.sim_visualizer.plot_gradient(f"figures/gradient_alone.png")
 
-        s.run(400)
-        s.select_top_scorers(20)
+    def define_gradient_and_weights(self, gradient_means, x_range, y_range):
 
-        run_stats = summarize_run(s.organisms)
-        run_stats['name'] = s.name
-        run_stats['index'] = s.index
-        print(f"done: {s.name}")
+        """
+        Create a gradient as list of weighted bivariate normal distributions
 
-        return(run_stats)
+        inputs:
+        - x_range - two element list definine the range where the mean can be placed
+        - y_range - two element list definine the range where the mean can be placed
+        - means - the number of means to create, default 1
 
-    def run_round(self, round_num=0, genomes=[]):
+        outputs:
+        - gradient - a list of distribution objects
+        - weights - a list of weights summing to one
+        """
+            
+        gradient = []
+        weights  = []
+
+        for i in range(gradient_means):
+            x_mean = random.random() * (x_range[1] - x_range[0]) + x_range[0]
+            y_mean = random.random() * (y_range[1] - y_range[0]) + y_range[0]
+            dist = multivariate_normal([x_mean, y_mean])
+            gradient.append(dist)
+
+        denom = 0.
+        raw = []
+
+        for i in range(gradient_means):
+            r = random.random()
+            raw.append(r)
+            denom += r
+        
+        for r in raw:
+            weights.append(r/denom)
+
+        return(gradient, weights)
+    
+    
+    def make_random_sequence(self, n, p):
+        
+        characters = ['[',']','0','1']
+        s = "".join(np.random.choice(characters, p=p, size=n))
+        return(s)
+    
+    def get_random_raw_genomes(self, n, raw_genome_length, char_freq, min_length):
+
+        g = 0
+        t = 0
+        genomes = []
+
+        while g < n and t < 10**9:
+            raw_seq = self.make_random_sequence(raw_genome_length, char_freq)
+            valid_tree = get_functional_genome(raw_seq, [0, len(raw_seq)])
+            if len(valid_tree) >= min_length:
+                genomes.append(raw_seq)
+                g+=1
+            t+=1
+        return(genomes)
+
+    def run_round(self, genomes=[]):
 
         if len(genomes) == 0:
             genomes = self.starting_genomes
 
-        # Build a list of simulations ready to be run
+        # Run simulations
         print("setting up simulations")
+        bots_to_run = []
+        raw_genomes_by_bot_name = {}
+
         i = 0
-        simulations = []
         for raw_genome in genomes:
-            name = f"simulation_{i}"
-            if i % 100 == 0:
-                print(name)
+            #print(f"spawning {self.individuals} bots with this genome:")
+            #print(raw_genome)
+            genome = get_functional_genome(raw_genome)
+            tree = sequence_to_tree(genome)
 
-            s = genome_sim(name, i, raw_genome, self.gradient, self.weights)
-            w = spawner(s)
             for j in range(self.individuals):
-                b = w.spawn_genome_bot(f"genome_bot_{i}_{j}")
-                s.add_organism(b)
-            simulations.append(s)
-
-            i += 1
-        
-        # Run simulations in parallel
-        print("running in parallel")
-        with Pool(10) as p:
-            run_results = p.map(self.run_one_genome_sim, simulations)
-
-        all_stats = {}
-        for run_stats in run_results:
-            all_stats[run_stats["name"]] = run_stats
-
-        plot_run_summary(all_stats, "all_stats")
-
-        survivors = select_surviving_simulations(all_stats)
-        #for g in survivors:
+                bot_name = f"b_{i}_{j}"
+                b = self.spawn_genome_bot(bot_name, tree)
+                raw_genomes_by_bot_name[bot_name] = raw_genome
+                bots_to_run.append((b, self.genome_sim_iterations))
             
-            #s.plot_paths(gradient, survivors[s].name)
-        #plot_run_summary(survivors, "survivors")
+            i += 1
+
+        print(len(bots_to_run))
+                
+        with Pool(10) as p:
+            finished_bots = p.map(run_bot, bots_to_run)
+
+        print(len(finished_bots))
+
+        all_stats = summarize_run(finished_bots, raw_genomes_by_bot_name)
+
+        #self.spawner.summarize_and_store_genomes(all_stats)
+        self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
+
+    def get_random_pos(self):
+
+        xr = self.x_range[1] - self.x_range[0]
+        yr = self.y_range[1] - self.y_range[0]
+
+        pos = [
+            random.random() * xr - self.x_range[1],
+            random.random() * yr - self.y_range[1],
+        ]
+
+        return(pos)
+
+    def spawn_static_bot(self, name):
+        pos = self.get_random_pos()
+        return(static_bot(self.sim, name, pos))
+
+    def spawn_genome_bot(self, name, tree):
+        pos = self.get_random_pos()
+        bot = genome_bot(name, self.gradient, self.weights, tree, pos)
+        return(bot)       
+
 
 if __name__ == "__main__":
 
-    sim = evo_sim()
+    random.seed(11)
+    np.random.seed(11)
+
+    sim = evo_sim(10, 25)
     sim.run_round()

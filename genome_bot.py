@@ -4,9 +4,8 @@ from util import gradient_score
 
 class genome_bot:
 
-    def __init__(self, genome_sim, name, pos=[0,0]):
+    def __init__(self, name, gradient, weights, tree, pos=[0,0]):
 
-        self.genome_sim = genome_sim
         self.name = name
 
         self.sensor_angles = [0., 1./3, 2./3]
@@ -14,13 +13,13 @@ class genome_bot:
 
         self.score = 0
         self.position = pos
-        self.raw_genome = self.genome_sim.raw_genome
-        self.genome = self.genome_sim.genome
-        self.tree = self.genome_sim.tree
+        self.tree = tree
+        self.gradient = gradient
+        self.weights = weights
 
         self.pos_log = {'x' : [self.position[0]],
                         'y' : [self.position[1]],
-                        's' : [gradient_score(self.genome_sim.gradient, self.genome_sim.weights, self.position[0], self.position[1])]}
+                        's' : [gradient_score(self.gradient, self.weights, self.position[0], self.position[1])]}
 
     def evaluate_tree(self, tree, values):
         """
@@ -50,7 +49,7 @@ class genome_bot:
     
     def get_move(self):
 
-        current_gradient_val = gradient_score(self.genome_sim.gradient, self.genome_sim.weights, self.position[0], self.position[1])
+        current_gradient_val = gradient_score(self.gradient, self.weights, self.position[0], self.position[1])
         sensor_values = []
 
         for i in range(len(self.sensor_angles)):
@@ -60,7 +59,7 @@ class genome_bot:
             x = d * np.cos(theta) + self.position[0]
             y = d * np.sin(theta) + self.position[1]
 
-            gradient_val = gradient_score(self.genome_sim.gradient, self.genome_sim.weights, x, y)
+            gradient_val = gradient_score(self.gradient, self.weights, x, y)
             gradient_diff = gradient_val - current_gradient_val
             sensor_values.append(gradient_diff)
 
@@ -80,7 +79,7 @@ class genome_bot:
         self.position = [new_x, new_y]
         self.pos_log['x'].append(new_x)
         self.pos_log['y'].append(new_y)
-        self.pos_log['s'].append(gradient_score(self.genome_sim.gradient, self.genome_sim.weights, new_x, new_y))
+        self.pos_log['s'].append(gradient_score(self.gradient, self.weights, new_x, new_y))
 
 
 

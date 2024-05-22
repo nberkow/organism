@@ -4,34 +4,50 @@ import random
 import json
 import re
 import numpy as np
-from util import get_clean_subtree, sequence_to_tree
+
 
 class spawner:
 
-    def __init__(self, sim):
-        self.sim = sim
+    def __init__(self, evo_sim, mut_params={}):
+        self.evo_sim = evo_sim
 
-    def get_random_pos(self):
+        # track genomes by their scores
+        self.all_genomes = []
 
-        xr = self.sim.x_range[1] - self.sim.x_range[0]
-        yr = self.sim.y_range[1] - self.sim.y_range[0]
+        self.genomes_by_best_final = {}
+        self.best_final_keys = []
 
-        pos = [
-            random.random() * xr - self.sim.x_range[1],
-            random.random() * yr - self.sim.y_range[1],
-        ]
+        self.genomes_by_best_average = {}
+        self.best_average_keys = []
 
-        return(pos)
+        self.genomes_by_best_max = {}
+        self.best_max_keys = {}
 
-    def spawn_static_bot(self, name):
+        # next round params
+        self.top_percent = 0.37
 
-        pos = self.get_random_pos()
-        return(static_bot(self.sim, name, pos))
+        if mut_params == {}:
+            self.mutation_params = {
+                    "p_substitution" : 0,
+                    "p_copy_paste"   : 0,
+                    "p_tandem_dupe"  : 0,
+                    "p_del"          : 0,
+                    "p_avg_seg_len"  : 0,
+                }
+        else:
+            self.mutation_params = mut_params
+
+
+    def summarize_and_store_genomes(self, round_summary_data):
+        print("-----")
+        print("FIXME: spawn logic here")
+        print(round_summary_data)
+        print("-----")
 
     
-    def spawn_genome_bot(self, name):
-
-        pos = self.get_random_pos()
-        bot = genome_bot(self.sim, name, pos)
-        return(bot)
+    def mutate(genome, n, mutation_params={}):
+        pass
+    
+    def spawn_next_round(self):
+        pass
 
