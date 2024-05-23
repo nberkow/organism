@@ -223,9 +223,9 @@ class sim_visualizer:
         """
 
         stat_functions = {
-            'mean_net_diff'  :  self.get_net_diff,
-            'mean_best_diff' :  self.get_best_diff,
-            'mean_avg_diff'  :  self.get_avg_diff
+            'mean_net_diff'  :  get_net_diff,
+            'mean_best_diff' :  get_best_diff,
+            'mean_avg_diff'  :  get_avg_diff
         }
 
         bots_by_score = {}
@@ -251,15 +251,6 @@ class sim_visualizer:
 
         return(top_scoring)
 
-
-    def get_net_diff(self, scores):
-        return scores[-1] - scores[0]
-    
-    def get_best_diff(self, scores):
-        return max(scores) - scores[0]
-        
-    def get_avg_diff(self, scores):
-        return np.average(scores) - scores[0]
 
     def make_countour_trace(self, gradient, weights, x_range, y_range, steps=100):
 

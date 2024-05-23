@@ -28,8 +28,10 @@ class evo_sim:
         self.raw_genome_length = 1000
         self.min_length = 20
         self.char_freq = [.25, .25, .25, .25]
-        self.starting_genomes = self.get_random_raw_genomes(self.n_genomes, self.raw_genome_length, self.char_freq, self.min_length)
+
+        self.starting_genomes = []
         self.individuals = individuals
+        self.selection_percent = .2
 
         # track the best scoring genomes across all runs and make new generations
         self.spawner = spawner(self)
@@ -37,14 +39,20 @@ class evo_sim:
         # visualize simulation results
         self.sim_visualizer = sim_visualizer(self)
 
+    def generate_random_genomes(self):
+        self.starting_genomes = self.get_random_raw_genomes(self.n_genomes, self.raw_genome_length, self.char_freq, self.min_length)
+
+    def set_genomes_from_list(self, genomes):
+        self.starting_genomes = genomes
+
     def define_gradient_and_weights(self, gradient_means, x_range, y_range):
 
         """
         Create a gradient as list of weighted bivariate normal distributions
 
         inputs:
-        - x_range - two element list definine the range where the mean can be placed
-        - y_range - two element list definine the range where the mean can be placed
+        - x_range - two element list definines the x range where the mean can be placed
+        - y_range - two element list definines the y range where the mean can be placed
         - means - the number of means to create, default 1
 
         outputs:
@@ -96,7 +104,7 @@ class evo_sim:
             t+=1
         return(genomes)
 
-    def run_round(self, genomes=[]):
+    def run_round(self, round_number, genomes=[]):
 
         if len(genomes) == 0:
             genomes = self.starting_genomes
@@ -132,7 +140,10 @@ class evo_sim:
         #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
 
         move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
-        self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, "figures/round_report.png")
+        self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, f"figures/round_{round_number}_report.png")
+        
+        offspring = self.spawner.spawn_next_round(all_stats, self.selection_percent)
+        return offspring
 
     def get_random_pos(self):
 
@@ -161,7 +172,19 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(1000, 25)
-    sim.run_round()
+    sim = evo_sim(100, 5)
+    sim.generate_random_genomes()
+    offspring = sim.run_round(0)
+    print(len(offspring))
 
-    vis = sim_visualizer(sim)
+    sim.set_genomes_from_list(offspring)
+    offspring = sim.run_round(1)
+    print(len(offspring))
+
+    sim.set_genomes_from_list(offspring)
+    offspring = sim.run_round(2)
+    print(len(offspring))
+
+    sim.set_genomes_from_list(offspring)
+    offspring = sim.run_round(3)
+    print(len(offspring))

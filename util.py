@@ -93,6 +93,15 @@ def run_bot(args):
         bot.make_move()
     return(bot)
 
+def get_net_diff(scores):
+    return scores[-1] - scores[0]
+
+def get_best_diff(scores):
+    return max(scores) - scores[0]
+    
+def get_avg_diff(scores):
+    return np.average(scores) - scores[0]
+
 def get_top_scoring_genomes(round_stats, stat, n):
 
     """
@@ -119,7 +128,7 @@ def get_top_scoring_genomes(round_stats, stat, n):
             j+=1
         i+=1
 
-        return(top_scoring)
+    return(top_scoring)
 
 def summarize_run(finished_bots, genomes_by_bot_name):
 
@@ -129,8 +138,6 @@ def summarize_run(finished_bots, genomes_by_bot_name):
     for bot in finished_bots:
 
         genome = genomes_by_bot_name[bot.name]
-        print(genome[0:10])
-
         if not genome in raw_scores_by_genome:
             raw_scores_by_genome[genome] = {
                 "net_diffs"    : [],
