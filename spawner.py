@@ -28,26 +28,16 @@ class spawner:
 
         if mut_params == {}:
             self.mutation_params = {
-                    "p_substitution" : 0,
-                    "p_copy_paste"   : 0,
-                    "p_tandem_dupe"  : 0,
-                    "p_del"          : 0,
-                    "p_avg_seg_len"  : 0,
+                    "p_tandem_dupe"  : 0.1,
+                    "p_del"          : 0.1,
+                    "point_mut"      : 0.01,
+                    "avg_seg_len"    : 10,
+                    "var_seg_len"    : 30,
                 }
         else:
             self.mutation_params = mut_params
 
-
-    def summarize_and_store_genomes(self, round_summary_data):
-        print("-----")
-        print("FIXME: spawn logic here")
-        print(round_summary_data)
-        print("-----")
-
     
-    def mutate(genome, n, mutation_params={}):
-        pass
-    
-    def spawn_next_round(self):
+    def spawn_next_round(self, selected_genomes, offspring_per_genome):
         pass
 

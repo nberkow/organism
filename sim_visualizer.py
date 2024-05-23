@@ -9,6 +9,19 @@ class sim_visualizer:
     def __init__(self, evo_sim):
         self.evo_sim = evo_sim
 
+        self.gradient_trace = None
+        if evo_sim:
+            self.gradient_trace = self.make_countour_trace(
+                evo_sim.gradient,
+                evo_sim.weights,
+                evo_sim.x_range,
+                evo_sim.y_range,
+            )
+
+        self.colors = ['red', 'blue', 'green', 'purple', 'orange', "pink", "lightblue"]
+
+
+
     def round_bots_to_move_log_dict(self, round_bots):
 
         move_log_dict = {}
@@ -30,7 +43,7 @@ class sim_visualizer:
             with open(f"{json_pfx}_genome_botname.json", 'w') as j:
                 json.dump(genome_by_bot_name, j)
 
-    def make_round_report(self, round_stats, move_log_dict, genome_by_bot_name, n, m):
+    def make_round_report(self, round_stats, move_log_dict, genome_by_bot_name, n, m, fname):
 
         """
         Inputs:
@@ -70,9 +83,10 @@ class sim_visualizer:
 
         
         stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
+        fig = make_subplots(rows=3, cols=3, subplot_titles=stats)
 
-        """
-        fig = make_subplots(rows=1, cols=3, subplot_titles=stats)
+        # Histogram
+
 
         for c in range(3):
             hist_go = self.make_histogram(round_stats, stats[c])
@@ -81,22 +95,99 @@ class sim_visualizer:
                 hist_go, row=1, col=c+1
             )
 
-        fig.show()
-        """
+
+        # Select bots to display in score curves and xy path plots
+        top_scoring_bots_by_stat = self.get_bots_to_display(stats, round_stats, move_log_dict, genome_by_bot_name, n, m)
+        all_top_scoring_bots = set()
+
+        for stat in top_scoring_bots_by_stat:
+            all_top_scoring_bots = all_top_scoring_bots.union(set(top_scoring_bots_by_stat[stat]))
+
+        # get conistant colors for each genome
+        color_by_genome = self.get_bot_colors(all_top_scoring_bots, genome_by_bot_name)
+
         
+        # score curves
+        for c in range(3):
+            s = stats[c]
+            top_scoring_bots = top_scoring_bots_by_stat[s]
+            traces = self.get_score_curve_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
+            for tr in traces:
+                fig.add_trace(tr, row=2, col=c+1)
+
+        # xy paths
+        x_range = [-1,1]
+        y_range = [-1,1]
+
+        if self.evo_sim:
+            x_range = self.evo_sim.x_range
+            y_range = self.evo_sim.y_range
+
+        for c in range(3):
+            s = stats[c]
+            top_scoring_bots = top_scoring_bots_by_stat[s]
+            if self.gradient_trace:
+                fig.add_trace(self.gradient_trace, row=3, col=c+1)
+            traces = self.get_xy_path_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
+            for tr in traces:
+                fig.add_trace(tr, row=3, col=c+1)
+
+        fig.update_xaxes(range=x_range, row=3)
+        fig.update_yaxes(range=y_range, row=3)
+        fig.update_layout(showlegend=False)
+
+        fig.write_image(fname)
+
+    def get_bots_to_display(self, stats, round_stats, move_log_dict, genome_by_bot_name, n, m):
+
+        """
+        Choose bots to appear in the score traces and gradient paths
+
+        return a dictionary of bot name lists indexed by the statistic used to choose them
+        """
+
         bots_by_genome = self.reverse_genome_bot_dict(genome_by_bot_name)
+        top_scoring_bots_by_stat = {}
 
-        for s in stats[0:1]:
-            top_scorers = self.get_top_scoring_genomes(round_stats, s, n)
+        for s in stats:
+            top_scoring_bots_by_stat[s] = []
+        all_top_scoring_bots = set()
+
+        for c in range(3):
+            s = stats[c]
+            top_scorers = get_top_scoring_genomes(round_stats, s, n)
             for g in top_scorers:
-                print(g[1:100])
                 bot_names = bots_by_genome[g]
-                top_scoring_bots = self.get_top_scoring_bots(bot_names, move_log_dict, s, 5)
-                for b in top_scoring_bots:
-                    print(f"\t{b}")
+                top_scoring_bots = self.get_top_scoring_bots(bot_names, move_log_dict, s, m)
+                top_scoring_bots_by_stat[s] += top_scoring_bots
+                all_top_scoring_bots = all_top_scoring_bots.union(set(top_scoring_bots))
 
+        return top_scoring_bots_by_stat
+
+
+    def get_bot_colors(self, bot_list, genome_by_bot_name):
+
+        color_index = 0
+        color_by_genome = {}
+
+        for b in list(bot_list):
+            genome = genome_by_bot_name[b]
+            if not genome in color_by_genome:
+                if color_index < len(self.colors):
+                    color_by_genome[genome] = self.colors[color_index]
+                    color_index += 1
+                else:
+                    color_by_genome[genome] = "grey"
+                    
+        return color_by_genome
+        
 
     def make_histogram(self, round_stats, stat):
+
+        """
+        Make a histogram across all genomes of a given stat
+        
+        """
 
         x = []
 
@@ -169,81 +260,8 @@ class sim_visualizer:
         
     def get_avg_diff(self, scores):
         return np.average(scores) - scores[0]
-    
-    def get_top_scoring_genomes(self, round_stats, stat, n):
 
-        """
-        select the the top n genomes for the given stat
-        """
-
-        top_scoring = []
-        
-        genome_by_stat = {}
-        for g in round_stats:
-            data_val = round_stats[g][stat]
-            if not data_val in genome_by_stat:
-                genome_by_stat[data_val] = []
-            genome_by_stat[data_val].append(g)
-        
-        ordered_values = sorted(list(genome_by_stat.keys()))
-
-        i = 0
-        while i < len(ordered_values) and len(top_scoring) < n:
-            tied_genomes = genome_by_stat[ordered_values[i]]
-            j = 0
-            while j < len(tied_genomes) and len(top_scoring) < n:
-                top_scoring.append(tied_genomes[j])
-                j+=1
-            i+=1
-
-        return(top_scoring)
-
-    def plot_score_curves(self):
-
-        org_list = self.top_scorers[0:min(20, len(self.top_scorers))]
-
-        curve_fig = go.Figure()
-        for b in org_list:
-            print(b.pos_log)
-            line_obj = go.Scatter(
-                x=list(range(len(b.pos_log['s']))), 
-                y=b.pos_log['s'], 
-                mode='lines', name=b.name)
-            curve_fig.add_trace(line_obj)
-
-        curve_fig.write_image(f"figures/{self.name}_score_curves.png")
-
-    def plot_gradient(self, f_dest):
-        gradient_fig = self.make_countour_plot(
-            self.evo_sim.gradient, 
-            self.evo_sim.weights, 
-            self.evo_sim.x_range, 
-            self.evo_sim.y_range)
-        gradient_fig.write_image(f_dest)
-    
-    def plot_paths(self, genome_sim):
-
-        gradient_fig = self.make_countour_plot(self.gradient, self.weights, self.x_range, self.y_range)
-        org_list = genome_sim.top_scorers[0:min(20, len(genome_sim.top_scorers))]
-
-        for g in org_list:
-            gradient_fig.add_trace(
-                go.Scatter(
-                    x=g.pos_log['x'],
-                    y=g.pos_log['y'],
-                    mode="lines+markers",
-                    marker=dict(
-                        symbol="arrow-bar-up",
-                        size=3,
-                        angleref="previous",
-                    ),
-                    name=g.name,
-                )
-            )
-
-        gradient_fig.write_image(f"figures/{genome_sim.name}_paths.png")
-
-    def make_countour_plot(self, gradient, weights, x_range, y_range, steps=100):
+    def make_countour_trace(self, gradient, weights, x_range, y_range, steps=100):
 
         """
         create a contour plot representing a gradient
@@ -252,7 +270,6 @@ class sim_visualizer:
         
         """
 
-        gradient_fig = go.Figure()
         x_abs = x_range[1] - x_range[0]
         y_abs = y_range[1] - y_range[0]
 
@@ -274,27 +291,42 @@ class sim_visualizer:
             first = False
             z.append(row)
         
-        gradient_fig.add_trace(go.Contour(x=x_vals, y=y_vals, z=z, contours_coloring='heatmap'))
-        return(gradient_fig)
+        contour_trace = go.Contour(x=x_vals, y=y_vals, z=z, contours_coloring='heatmap')
+        return(contour_trace)
+
+    def get_score_curve_traces(self, selected_bot_names, move_log_dict, genome_by_bot_name, color_by_genome):
+
+        traces = []
+        for b in selected_bot_names:
+            score_history = move_log_dict[b]['s']
+            genome_color = color_by_genome[genome_by_bot_name[b]]
+            line_obj = go.Scatter(
+                x=list(range(len(score_history))), 
+                y=score_history, 
+                mode='lines', name=b, line_color=genome_color)
+            traces.append(line_obj)
+
+        return(traces)
     
-    
-    def plot_run_summary(self, run_stats, name):
+    def get_xy_path_traces(self, selected_bot_names, move_log_dict, genome_by_bot_name, color_by_genome):
 
-        fig = go.Figure()
-        for r in run_stats:
+        traces = []
+        for b in selected_bot_names:
+            genome_color = color_by_genome[genome_by_bot_name[b]]
+            line_obj = go.Scatter(
+                x=move_log_dict[b]['x'], 
+                y=move_log_dict[b]['y'], 
+                mode='lines+markers', 
+                marker=dict(
+                        symbol="arrow-bar-up",
+                        size=1,
+                        angleref="previous",
+                    ),
+                name=b, line_color=genome_color)
+            traces.append(line_obj)
 
-            stats = run_stats[r]
-            y_vals = [stats["mean_diff"], stats["mean_max"]]
-            y_std  = [stats["std_diff"], stats["std_max"]]
+        return(traces)
 
-            fig.add_trace(go.Bar(
-                name=r,
-                x=['y = Avg - Starting', 'y = Best - Starting'], y=y_vals,
-                error_y=dict(type='data', array=y_std)
-            ))
-
-        fig.update_layout(barmode='group')
-        fig.write_image(f"figures/summary_{name}.png")
 
 if __name__ == "__main__":
 
@@ -308,5 +340,5 @@ if __name__ == "__main__":
         genome_by_bot_name = json.load(g)
     
     vis = sim_visualizer(None)
-    vis.make_round_report(bot_stats, move_logs, genome_by_bot_name, 3, 5)
+    vis.make_round_report(bot_stats, move_logs, genome_by_bot_name, 5, 3, "figures/round_report.png")
     

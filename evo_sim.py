@@ -36,7 +36,6 @@ class evo_sim:
 
         # visualize simulation results
         self.sim_visualizer = sim_visualizer(self)
-        self.sim_visualizer.plot_gradient(f"figures/gradient_alone.png")
 
     def define_gradient_and_weights(self, gradient_means, x_range, y_range):
 
@@ -109,8 +108,6 @@ class evo_sim:
 
         i = 0
         for raw_genome in genomes:
-            #print(f"spawning {self.individuals} bots with this genome:")
-            #print(raw_genome)
             genome = get_functional_genome(raw_genome)
             tree = sequence_to_tree(genome)
 
@@ -122,7 +119,7 @@ class evo_sim:
             
             i += 1
 
-        print(len(bots_to_run))
+        print(f"running round with {len(bots_to_run)} bots in parallel")
                 
         with Pool(10) as p:
             finished_bots = p.map(run_bot, bots_to_run)
@@ -132,7 +129,10 @@ class evo_sim:
         all_stats = summarize_run(finished_bots, raw_genomes_by_bot_name)
 
         #self.spawner.summarize_and_store_genomes(all_stats)
-        self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
+        #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
+
+        move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
+        self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, "figures/round_report.png")
 
     def get_random_pos(self):
 
@@ -161,5 +161,7 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(10, 25)
+    sim = evo_sim(1000, 25)
     sim.run_round()
+
+    vis = sim_visualizer(sim)

@@ -91,7 +91,35 @@ def run_bot(args):
     #print(f"simulating bot {bot.name}")
     for i in range(iterations):
         bot.make_move()
-    return(bot)    
+    return(bot)
+
+def get_top_scoring_genomes(round_stats, stat, n):
+
+    """
+    select the the top n genomes for the given stat
+    """
+
+    top_scoring = []
+    
+    genome_by_stat = {}
+    for g in round_stats:
+        data_val = round_stats[g][stat]
+        if not data_val in genome_by_stat:
+            genome_by_stat[data_val] = []
+        genome_by_stat[data_val].append(g)
+    
+    ordered_values = sorted(list(genome_by_stat.keys()))
+
+    i = 0
+    while i < len(ordered_values) and len(top_scoring) < n:
+        tied_genomes = genome_by_stat[ordered_values[i]]
+        j = 0
+        while j < len(tied_genomes) and len(top_scoring) < n:
+            top_scoring.append(tied_genomes[j])
+            j+=1
+        i+=1
+
+        return(top_scoring)
 
 def summarize_run(finished_bots, genomes_by_bot_name):
 
