@@ -172,19 +172,12 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(100, 5)
+    sim = evo_sim(1000, 5)
     sim.generate_random_genomes()
     offspring = sim.run_round(0)
-    print(len(offspring))
 
-    sim.set_genomes_from_list(offspring)
-    offspring = sim.run_round(1)
-    print(len(offspring))
+    for i in range(250):
+        sim.set_genomes_from_list(offspring)
+        offspring = sim.run_round(i+1)
 
-    sim.set_genomes_from_list(offspring)
-    offspring = sim.run_round(2)
-    print(len(offspring))
 
-    sim.set_genomes_from_list(offspring)
-    offspring = sim.run_round(3)
-    print(len(offspring))

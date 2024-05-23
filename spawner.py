@@ -63,7 +63,7 @@ class spawner:
             mut_params = self.mutation_params
 
         n = top_percent * total_genomes
-        spawn_number = (total_genomes - n)/n 
+        spawn_number = total_genomes/n 
 
         print(f"input genomes:\t{total_genomes}\n" + \
               f"top %:\t\t{top_percent}\n" + \
@@ -83,11 +83,16 @@ class spawner:
 
         print(f"offspring:\t{len(offspring_genomes)}")
 
-        return parent_genomes + offspring_genomes
+        return offspring_genomes
 
     def mutate_and_spawn(self, parent_genome, spawn_number, mut_params):
 
-        offspring = set()
+        """
+        Create mutated versions of the input genome
+        returns a list of genomes including the input
+        """
+
+        offspring = set([parent_genome])
         while len(offspring) < spawn_number:
 
             offspring_genome = parent_genome
