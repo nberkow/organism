@@ -4,11 +4,11 @@ from util import gradient_score
 
 class genome_bot:
 
-    def __init__(self, name, gradient, weights, tree, pos=[0,0]):
+    def __init__(self, name, gradient, weights, tree, pos=[0,0], twist=0):
 
         self.name = name
 
-        self.sensor_angles = [0., 1./3, 2./3]
+        self.sensor_angles = [(0. + twist) % 1, (1./3 + twist) % 1, (2./3 + twist) % 1]
         self.sensor_distances = [.1, .1, .1]
 
         self.score = 0

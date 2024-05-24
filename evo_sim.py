@@ -1,7 +1,6 @@
 import random
 import numpy as np
 from util import *
-from genome_sim import genome_sim
 from spawner import spawner
 from sim_visualizer import sim_visualizer
 from multiprocessing import Pool
@@ -169,14 +168,15 @@ class evo_sim:
 
     def spawn_genome_bot(self, name, tree):
         pos = self.get_random_pos()
-        bot = genome_bot(name, self.gradient, self.weights, tree, pos)
+        twist = random.random()
+        bot = genome_bot(name, self.gradient, self.weights, tree, pos, twist)
         return(bot)
 
 class leaderboard:
 
     def __init__(self):
 
-        self.n = 3
+        self.n = 20
         self.leaders_per_round = []
         self.stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
 
@@ -229,7 +229,7 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(2000, 8)
+    sim = evo_sim(2500, 8)
     sim.generate_random_genomes()
     offspring = sim.run_round(0)
     lboard = leaderboard()
@@ -237,7 +237,7 @@ if __name__ == "__main__":
     for i in range(10000):
 
         make_figs = False
-        if i % 50 == 0:
+        if i % 100 == 0:
             make_figs = True
 
         sim.set_genomes_from_list(offspring)
@@ -247,7 +247,7 @@ if __name__ == "__main__":
         genome_by_bot_name = round_results["genome_by_bot_name"]
         lboard.add_round(i, top_bots_by_stat, genome_by_bot_name)
 
-        if (i + 1) % 200 == 0:
+        if (i + 1) % 500 == 0:
             lboard.write_leader_summary(f"figures/leaderboard_{i}.tsv")
 
 
