@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.stats import multivariate_normal
+
 
 def get_functional_genome(sequence, coords=None):
 

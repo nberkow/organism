@@ -7,6 +7,7 @@ from sim_visualizer import sim_visualizer
 from multiprocessing import Pool
 from static_bot import static_bot
 from genome_bot import genome_bot
+from scipy.stats import multivariate_normal
 
 class evo_sim:
 
@@ -140,10 +141,13 @@ class evo_sim:
         #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
 
         move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
-        self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, f"figures/round_{round_number}_report.png")
-        
+        top_scoring_bots_by_stat = self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, f"figures/round_{round_number}_report.png")
+        print(top_scoring_bots_by_stat)
+
         offspring = self.spawner.spawn_next_round(all_stats, self.selection_percent)
-        return offspring
+        return {"offspring": offspring, 
+                "top_scoring_bots_by_stat" : top_scoring_bots_by_stat,
+                "genome_by_bot_name" : raw_genomes_by_bot_name}
 
     def get_random_pos(self):
 
@@ -164,20 +168,78 @@ class evo_sim:
     def spawn_genome_bot(self, name, tree):
         pos = self.get_random_pos()
         bot = genome_bot(name, self.gradient, self.weights, tree, pos)
-        return(bot)       
+        return(bot)
 
+class leaderboard:
+
+    def __init__(self):
+
+        self.n = 3
+        self.leaders_per_round = []
+        self.stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
+
+        self.names_by_genome = {}
+
+    def add_round(self, round_num, top_bots_by_stat, genome_by_bot_name):
+
+        round_data = {}
+        for stat in self.stats:
+            round_data[stat] = []
+            already_ranked_genomes = set()
+            for i in range(len(top_bots_by_stat[stat])):
+                
+                b = top_bots_by_stat[stat][i]
+                g = genome_by_bot_name[b]
+                if not g in already_ranked_genomes:
+
+                    if not g in self.names_by_genome:
+                        name = f"g_r{round_num}_p{i}"
+                        self.names_by_genome[g] = name
+                    else:
+                        name = self.names_by_genome[g]
+
+                    already_ranked_genomes.add(g)
+                    round_data[stat].append(name)
+        
+        self.leaders_per_round.append(round_data)
+
+    def write_leader_summary(self, outfile):
+
+        header = ["rank"] + self.stats
+
+        with open(outfile, 'w') as report:
+            
+            for round in range(len(self.leaders_per_round)):
+                print(f"Round {round} Leaders", file=report)
+                print("\t".join(header), file=report)
+                round_data = self.leaders_per_round[round]
+                for i in range(self.n):
+                    line_elements = [str(i + 1)]
+                    for stat in self.stats:
+                        name = round_data[stat][i]
+                        line_elements.append(name)
+                    print("\t".join(line_elements), file=report)
+                print("\n\n", file=report)
+                
 
 if __name__ == "__main__":
 
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(1000, 5)
+    sim = evo_sim(100, 5)
     sim.generate_random_genomes()
     offspring = sim.run_round(0)
+    lboard = leaderboard()
 
-    for i in range(250):
+    for i in range(3):
         sim.set_genomes_from_list(offspring)
-        offspring = sim.run_round(i+1)
+        round_results = sim.run_round(i+1)
+        offspring = round_results['offspring']
+        top_bots_by_stat = round_results["top_scoring_bots_by_stat"]
+        genome_by_bot_name = round_results["genome_by_bot_name"]
+        lboard.add_round(i, top_bots_by_stat, genome_by_bot_name)
+
+    lboard.write_leader_summary("figures/leaderboard.tsv")
 
 

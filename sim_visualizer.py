@@ -138,6 +138,8 @@ class sim_visualizer:
 
         fig.write_image(fname)
 
+        return(top_scoring_bots_by_stat)
+
     def get_bots_to_display(self, stats, round_stats, move_log_dict, genome_by_bot_name, n, m):
 
         """
@@ -151,7 +153,6 @@ class sim_visualizer:
 
         for s in stats:
             top_scoring_bots_by_stat[s] = []
-        all_top_scoring_bots = set()
 
         for c in range(3):
             s = stats[c]
@@ -160,7 +161,6 @@ class sim_visualizer:
                 bot_names = bots_by_genome[g]
                 top_scoring_bots = self.get_top_scoring_bots(bot_names, move_log_dict, s, m)
                 top_scoring_bots_by_stat[s] += top_scoring_bots
-                all_top_scoring_bots = all_top_scoring_bots.union(set(top_scoring_bots))
 
         return top_scoring_bots_by_stat
 
