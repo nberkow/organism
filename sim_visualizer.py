@@ -83,19 +83,8 @@ class sim_visualizer:
 
         
         stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
-        fig = make_subplots(rows=3, cols=3, subplot_titles=stats)
 
-        # Histogram
-
-
-        for c in range(3):
-            hist_go = self.make_histogram(round_stats, stats[c])
-        
-            fig.add_trace(
-                hist_go, row=1, col=c+1
-            )
-
-
+        #FIXME refactor this out so top_scoring_bots_by_stat is separate from fig generation
         # Select bots to display in score curves and xy path plots
         top_scoring_bots_by_stat = self.get_bots_to_display(stats, round_stats, move_log_dict, genome_by_bot_name, n, m)
         all_top_scoring_bots = set()
@@ -106,37 +95,50 @@ class sim_visualizer:
         # get conistant colors for each genome
         color_by_genome = self.get_bot_colors(all_top_scoring_bots, genome_by_bot_name)
 
-        
-        # score curves
-        for c in range(3):
-            s = stats[c]
-            top_scoring_bots = top_scoring_bots_by_stat[s]
-            traces = self.get_score_curve_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
-            for tr in traces:
-                fig.add_trace(tr, row=2, col=c+1)
+        if fname:
+            fig = make_subplots(rows=3, cols=3, subplot_titles=stats)
 
-        # xy paths
-        x_range = [-1,1]
-        y_range = [-1,1]
+            # Histogram
 
-        if self.evo_sim:
-            x_range = self.evo_sim.x_range
-            y_range = self.evo_sim.y_range
 
-        for c in range(3):
-            s = stats[c]
-            top_scoring_bots = top_scoring_bots_by_stat[s]
-            if self.gradient_trace:
-                fig.add_trace(self.gradient_trace, row=3, col=c+1)
-            traces = self.get_xy_path_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
-            for tr in traces:
-                fig.add_trace(tr, row=3, col=c+1)
+            for c in range(3):
+                hist_go = self.make_histogram(round_stats, stats[c])
+            
+                fig.add_trace(
+                    hist_go, row=1, col=c+1
+                )
 
-        fig.update_xaxes(range=x_range, row=3)
-        fig.update_yaxes(range=y_range, row=3)
-        fig.update_layout(showlegend=False)
+            
+            # score curves
+            for c in range(3):
+                s = stats[c]
+                top_scoring_bots = top_scoring_bots_by_stat[s]
+                traces = self.get_score_curve_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
+                for tr in traces:
+                    fig.add_trace(tr, row=2, col=c+1)
 
-        fig.write_image(fname)
+            # xy paths
+            x_range = [-1,1]
+            y_range = [-1,1]
+
+            if self.evo_sim:
+                x_range = self.evo_sim.x_range
+                y_range = self.evo_sim.y_range
+
+            for c in range(3):
+                s = stats[c]
+                top_scoring_bots = top_scoring_bots_by_stat[s]
+                if self.gradient_trace:
+                    fig.add_trace(self.gradient_trace, row=3, col=c+1)
+                traces = self.get_xy_path_traces(top_scoring_bots, move_log_dict, genome_by_bot_name, color_by_genome)
+                for tr in traces:
+                    fig.add_trace(tr, row=3, col=c+1)
+
+            fig.update_xaxes(range=x_range, row=3)
+            fig.update_yaxes(range=y_range, row=3)
+            fig.update_layout(showlegend=False)
+
+            fig.write_image(fname)
 
         return(top_scoring_bots_by_stat)
 

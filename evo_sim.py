@@ -105,7 +105,7 @@ class evo_sim:
             t+=1
         return(genomes)
 
-    def run_round(self, round_number, genomes=[]):
+    def run_round(self, round_number, genomes=[], make_figures=False):
 
         if len(genomes) == 0:
             genomes = self.starting_genomes
@@ -140,9 +140,11 @@ class evo_sim:
         #self.spawner.summarize_and_store_genomes(all_stats)
         #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
 
+        figure_file = None
+        if make_figures:
+            figure_file = f"figures/round_{round_number}_report.png"
         move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
-        top_scoring_bots_by_stat = self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, f"figures/round_{round_number}_report.png")
-        print(top_scoring_bots_by_stat)
+        top_scoring_bots_by_stat = self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, figure_file)
 
         offspring = self.spawner.spawn_next_round(all_stats, self.selection_percent)
         return {"offspring": offspring, 
@@ -227,19 +229,25 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
 
-    sim = evo_sim(100, 5)
+    sim = evo_sim(2000, 8)
     sim.generate_random_genomes()
     offspring = sim.run_round(0)
     lboard = leaderboard()
 
-    for i in range(3):
+    for i in range(10000):
+
+        make_figs = False
+        if i % 50 == 0:
+            make_figs = True
+
         sim.set_genomes_from_list(offspring)
-        round_results = sim.run_round(i+1)
+        round_results = sim.run_round(i+1, make_figures=make_figs)
         offspring = round_results['offspring']
         top_bots_by_stat = round_results["top_scoring_bots_by_stat"]
         genome_by_bot_name = round_results["genome_by_bot_name"]
         lboard.add_round(i, top_bots_by_stat, genome_by_bot_name)
 
-    lboard.write_leader_summary("figures/leaderboard.tsv")
+        if (i + 1) % 200 == 0:
+            lboard.write_leader_summary(f"figures/leaderboard_{i}.tsv")
 
 
