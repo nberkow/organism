@@ -115,6 +115,7 @@ class evo_sim:
         raw_genomes_by_bot_name = {}
 
         i = 0
+
         for raw_genome in genomes:
             genome = get_functional_genome(raw_genome)
             tree = sequence_to_tree(genome)
@@ -131,10 +132,9 @@ class evo_sim:
                 
         with Pool(10) as p:
             finished_bots = p.map(run_bot, bots_to_run)
+        
 
-        print(len(finished_bots))
-
-        all_stats = summarize_run(finished_bots, raw_genomes_by_bot_name)
+        round_stats = summarize_run(finished_bots, raw_genomes_by_bot_name)
 
         #self.spawner.summarize_and_store_genomes(all_stats)
         #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
@@ -143,11 +143,15 @@ class evo_sim:
         if make_figures:
             figure_file = f"figures/round_{round_number}_report.png"
         move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
-        top_scoring_bots_by_stat = self.sim_visualizer.make_round_report(all_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, figure_file)
 
-        offspring = self.spawner.spawn_next_round(all_stats, self.selection_percent)
+        self.sim_visualizer.make_round_report(round_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, figure_file)
+
+        stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
+        bots_for_leaderboard = self.sim_visualizer.get_bots_to_display(stats, round_stats, move_log_dict, raw_genomes_by_bot_name, 20, 3)
+
+        offspring = self.spawner.spawn_next_round(round_stats, self.selection_percent)
         return {"offspring": offspring, 
-                "top_scoring_bots_by_stat" : top_scoring_bots_by_stat,
+                "top_scoring_bots_by_stat" : bots_for_leaderboard,
                 "genome_by_bot_name" : raw_genomes_by_bot_name}
 
     def get_random_pos(self):
@@ -228,26 +232,46 @@ if __name__ == "__main__":
 
     random.seed(11)
     np.random.seed(11)
-
-    sim = evo_sim(2500, 8)
-    sim.generate_random_genomes()
-    offspring = sim.run_round(0)
     lboard = leaderboard()
 
-    for i in range(10000):
+    report_at_round = 2
+
+    round = 0
+    sim = evo_sim(2500, 21)
+    sim.generate_random_genomes()
+
+    round_results = sim.run_round(round, make_figures=True)
+    offspring = round_results['offspring']
+    top_bots_by_stat = round_results["top_scoring_bots_by_stat"]
+    genome_by_bot_name = round_results["genome_by_bot_name"]
+    lboard.add_round(round, top_bots_by_stat, genome_by_bot_name)
+
+    print(f"len offspring: {len(offspring)}")
+    print(f"len genome_by_bot_name: {len(genome_by_bot_name)}")
+
+    lboard.write_leader_summary(f"figures/leaderboard_{round}.tsv")
+  
+    for round in range(1, 20000):
 
         make_figs = False
-        if i % 100 == 0:
+        if round == report_at_round:
             make_figs = True
 
         sim.set_genomes_from_list(offspring)
-        round_results = sim.run_round(i+1, make_figures=make_figs)
+        round_results = sim.run_round(round, make_figures=make_figs)
         offspring = round_results['offspring']
         top_bots_by_stat = round_results["top_scoring_bots_by_stat"]
         genome_by_bot_name = round_results["genome_by_bot_name"]
-        lboard.add_round(i, top_bots_by_stat, genome_by_bot_name)
 
-        if (i + 1) % 500 == 0:
-            lboard.write_leader_summary(f"figures/leaderboard_{i}.tsv")
+        print(f"len offspring: {len(offspring)}")
+        print(f"len genome_by_bot_name: {len(genome_by_bot_name)}")
+
+        lboard.add_round(round, top_bots_by_stat, genome_by_bot_name)
+
+        if round == report_at_round * 10:
+            lboard.write_leader_summary(f"figures/leaderboard_{round}.tsv")
+
+        if make_figs:
+            report_at_round *= 2
 
 

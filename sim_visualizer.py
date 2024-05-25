@@ -43,6 +43,7 @@ class sim_visualizer:
             with open(f"{json_pfx}_genome_botname.json", 'w') as j:
                 json.dump(genome_by_bot_name, j)
 
+
     def make_round_report(self, round_stats, move_log_dict, genome_by_bot_name, n, m, fname):
 
         """
@@ -84,8 +85,6 @@ class sim_visualizer:
         
         stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
 
-        #FIXME refactor this out so top_scoring_bots_by_stat is separate from fig generation
-        # Select bots to display in score curves and xy path plots
         top_scoring_bots_by_stat = self.get_bots_to_display(stats, round_stats, move_log_dict, genome_by_bot_name, n, m)
         all_top_scoring_bots = set()
 
@@ -145,24 +144,26 @@ class sim_visualizer:
     def get_bots_to_display(self, stats, round_stats, move_log_dict, genome_by_bot_name, n, m):
 
         """
-        Choose bots to appear in the score traces and gradient paths
-
+        Choose bots to appear in the score traces and gradient paths.
+        - pick the best performing n genomes
+        - for each genome pick the best performing m bots
+ 
         return a dictionary of bot name lists indexed by the statistic used to choose them
         """
 
         bots_by_genome = self.reverse_genome_bot_dict(genome_by_bot_name)
+        ranked_genomes_by_stat = get_ranked_genomes_by_stat(round_stats, stats)
+
         top_scoring_bots_by_stat = {}
 
-        for s in stats:
-            top_scoring_bots_by_stat[s] = []
+        for stat in stats:
+            top_scoring_bots_by_stat[stat] = []
+            ranked_genomes = ranked_genomes_by_stat[stat][0:n]
 
-        for c in range(3):
-            s = stats[c]
-            top_scorers = get_top_scoring_genomes(round_stats, s, n)
-            for g in top_scorers:
+            for g in ranked_genomes:
                 bot_names = bots_by_genome[g]
-                top_scoring_bots = self.get_top_scoring_bots(bot_names, move_log_dict, s, m)
-                top_scoring_bots_by_stat[s] += top_scoring_bots
+                top_scoring_bots = self.get_top_scoring_bots(bot_names, move_log_dict, stat, m)
+                top_scoring_bots_by_stat[stat] += top_scoring_bots
 
         return top_scoring_bots_by_stat
 
@@ -212,6 +213,8 @@ class sim_visualizer:
         return(bots_by_genome)
        
     def get_top_scoring_bots(self, bot_names, move_log_dict, stat, m):
+
+        #FIXME bugged. losing number between rounds
         
         """
         return a list of the best scoring bots to be used in example plots

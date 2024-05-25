@@ -63,49 +63,62 @@ class spawner:
             mut_params = self.mutation_params
 
         n = top_percent * total_genomes
-        spawn_number = total_genomes/n 
 
-        print(f"input genomes:\t{total_genomes}\n" + \
+        print("\nspawning new round:\n"
+              f"input genomes:\t{total_genomes}\n" + \
               f"top %:\t\t{top_percent}\n" + \
-              f"n:\t\t{n}\n" + \
-              f"spawm_number:\t{spawn_number}\n"
+              f"n:\t\t{n}\n"
               )
 
-        parent_genomes = []
-        for stat in stats:
-            parent_genomes += get_top_scoring_genomes(round_stats, stat, n/len(stats))
-
+        parent_genomes = get_higest_scoring_genomes_across_stats(round_stats, stats, n)
         print(f"parents:\t{len(parent_genomes)}")
 
-        offspring_genomes = []
-        for g in parent_genomes:
-            offspring_genomes += self.mutate_and_spawn(g, spawn_number, mut_params)
+        offspring_genomes = self.mutate_and_spawn(parent_genomes, len(round_stats), mut_params)
 
         print(f"offspring:\t{len(offspring_genomes)}")
 
         return offspring_genomes
 
-    def mutate_and_spawn(self, parent_genome, spawn_number, mut_params):
+    def mutate_and_spawn(self, parent_genomes, n, mut_params):
 
         """
-        Create mutated versions of the input genome
+        Create mutated versions of the input genomes
         returns a list of genomes including the input
         """
 
-        offspring = set([parent_genome])
-        while len(offspring) < spawn_number:
+        mutated_genomes_lists = []
+        offspring_genomes = set(parent_genomes)
+        spawn_number = int(n/len(parent_genomes)) + 2
 
-            offspring_genome = parent_genome
+        for g in parent_genomes:
+            mutated_genomes_lists.append(self.mutate(g, spawn_number, mut_params))
+            
+        i = 0
+        while i < spawn_number and len(offspring_genomes) < n:
+            j = 0
+            while j < len(mutated_genomes_lists) and len(offspring_genomes) < n:
+                offspring_genomes.add(mutated_genomes_lists[j][i])
+                j += 1
+            i += 1
+
+        return(list(offspring_genomes))
+    
+    def mutate(self, parent_genome, spawn_number, mut_params):
+
+        mutated = set()
+
+        while len(mutated) < spawn_number:
+            mutated_genome = parent_genome
 
             if random.random() < mut_params["p_tandem_dupe"]:
-                offspring_genome = self.tandem_dupe(offspring_genome, mut_params["avg_seg_len"], mut_params["var_seg_len"])
+                mutated_genome = self.tandem_dupe(mutated_genome, mut_params["avg_seg_len"], mut_params["var_seg_len"])
             if random.random() < mut_params["p_del"]:
-                offspring_genome = self.tandem_dupe(offspring_genome, mut_params["avg_seg_len"], mut_params["var_seg_len"])
+                mutated_genome = self.tandem_dupe(mutated_genome, mut_params["avg_seg_len"], mut_params["var_seg_len"])
 
-            offspring_genome = self.add_point_mut(offspring_genome, mut_params["point_mut"])
-            offspring.add(offspring_genome)
+            mutated_genome = self.add_point_mut(mutated_genome, mut_params["point_mut"])
+            mutated.add(mutated_genome)
 
-        return(list(offspring))
+        return(list(mutated))
 
 
     def tandem_dupe(self, genome, avg_seg_len, var_seg_len):

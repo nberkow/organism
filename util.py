@@ -1,5 +1,5 @@
 import numpy as np
-
+import math
 
 def get_functional_genome(sequence, coords=None):
 
@@ -88,7 +88,6 @@ def run_bot(args):
     """
     
     bot, iterations = args
-    #print(f"simulating bot {bot.name}")
     for i in range(iterations):
         bot.make_move()
     return(bot)
@@ -102,33 +101,84 @@ def get_best_diff(scores):
 def get_avg_diff(scores):
     return np.average(scores) - scores[0]
 
-def get_top_scoring_genomes(round_stats, stat, n):
+def rank_genomes_by_stat(round_stats, stat):
 
     """
-    select the the top n genomes for the given stat
+    rank genomes for the given stat and return the sorted list
+
+    round_stats - Nested dict. keys are raw genome sequences, vals are a dictionary of stats
+
+    stat - the stat to use for ranking
     """
 
-    top_scoring = []
+    ranked_genomes = []
     
-    genome_by_stat = {}
+    genome_by_stat_value = {}
     for g in round_stats:
-        data_val = round_stats[g][stat]
-        if not data_val in genome_by_stat:
-            genome_by_stat[data_val] = []
-        genome_by_stat[data_val].append(g)
+        stat_val = round_stats[g][stat]
+        if not stat_val in genome_by_stat_value:
+            genome_by_stat_value[stat_val] = []
+        genome_by_stat_value[stat_val].append(g)
     
-    ordered_values = sorted(list(genome_by_stat.keys()))
+    ordered_values = sorted(list(genome_by_stat_value.keys()), reverse=True)
+
+    for stat_val in ordered_values:
+        tied_genomes = genome_by_stat_value[stat_val]
+        for genome in tied_genomes:
+            ranked_genomes.append(genome)
+
+    return(ranked_genomes)
+
+def get_ranked_genomes_by_stat(round_stats, stats):
+
+    """
+    rank genomes by each stat. return a dictionary
+        - keys: stats
+        - vals: list of genomes sorted by stat value
+
+    round_stats - Nested dict. keys are raw genome sequences, vals are a dictionary of stats
+
+    stats - list of stats to use for ranking
+    """
+
+    ranked_genome_lists_by_stat = {}
+
+    for stat in stats:
+        ranked_genomes = rank_genomes_by_stat(round_stats, stat)
+        ranked_genome_lists_by_stat[stat] = ranked_genomes
+
+    return(ranked_genome_lists_by_stat)
+
+def get_higest_scoring_genomes_across_stats(round_stats, stats, n):
+
+    """
+    get the higest scoring genomes across a list of stats. return a total of n genomes. 
+
+    round_stats - Nested dict. keys are raw genome sequences, vals are a dictionary of stats
+
+    stats - list of stats to use for ranking
+    """
+
+    ranked_genome_lists_by_stat = get_ranked_genomes_by_stat(round_stats, stats)
+
+    min_list_len = math.inf
+    for stat in ranked_genome_lists_by_stat:
+        if len(ranked_genome_lists_by_stat[stat]) < min_list_len:
+            min_list_len = len(ranked_genome_lists_by_stat[stat])
+
+    selected_genomes = set()
 
     i = 0
-    while i < len(ordered_values) and len(top_scoring) < n:
-        tied_genomes = genome_by_stat[ordered_values[i]]
+    while i < min_list_len and len(selected_genomes) < n:
         j = 0
-        while j < len(tied_genomes) and len(top_scoring) < n:
-            top_scoring.append(tied_genomes[j])
-            j+=1
-        i+=1
+        while j < len(stats) and len(selected_genomes) < n:
+            stat = stats[j]
+            selected_genomes.add(ranked_genome_lists_by_stat[stat][i])
+            j += 1
+        i += 1
 
-    return(top_scoring)
+    return(list(selected_genomes))
+
 
 def summarize_run(finished_bots, genomes_by_bot_name):
 
