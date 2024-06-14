@@ -44,7 +44,7 @@ class sim_visualizer:
                 json.dump(genome_by_bot_name, j)
 
 
-    def make_round_report(self, round_stats, move_log_dict, genome_by_bot_name, n, m, fname):
+    def make_round_report(self, round_stats, move_log_dict, genome_by_bot_name, n, m, make_figures):
 
         """
         Inputs:
@@ -94,19 +94,17 @@ class sim_visualizer:
         # get conistant colors for each genome
         color_by_genome = self.get_bot_colors(all_top_scoring_bots, genome_by_bot_name)
 
-        if fname:
+        fig = None
+        if make_figures:
             fig = make_subplots(rows=3, cols=3, subplot_titles=stats)
 
-            # Histogram
-
-
+            # histogram
             for c in range(3):
                 hist_go = self.make_histogram(round_stats, stats[c])
             
                 fig.add_trace(
                     hist_go, row=1, col=c+1
                 )
-
             
             # score curves
             for c in range(3):
@@ -137,9 +135,7 @@ class sim_visualizer:
             fig.update_yaxes(range=y_range, row=3)
             fig.update_layout(showlegend=False)
 
-            fig.write_image(fname)
-
-        return(top_scoring_bots_by_stat)
+        return(fig)
 
     def get_bots_to_display(self, stats, round_stats, move_log_dict, genome_by_bot_name, n, m):
 

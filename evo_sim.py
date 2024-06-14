@@ -31,7 +31,7 @@ class evo_sim:
 
         self.starting_genomes = []
         self.individuals = individuals
-        self.selection_percent = .2
+        self.selection_percent = 0.37
 
         # track the best scoring genomes across all runs and make new generations
         self.spawner = spawner(self)
@@ -104,7 +104,7 @@ class evo_sim:
             t+=1
         return(genomes)
 
-    def run_round(self, round_number, genomes=[], make_figures=False):
+    def run_round(self, round_number, genomes=[], make_figures=False, fig_dir="."):
 
         if len(genomes) == 0:
             genomes = self.starting_genomes
@@ -139,12 +139,15 @@ class evo_sim:
         #self.spawner.summarize_and_store_genomes(all_stats)
         #self.sim_visualizer.make_jsons(all_stats, finished_bots, raw_genomes_by_bot_name, "data/round_bots")
 
-        figure_file = None
-        if make_figures:
-            figure_file = f"figures/round_{round_number}_report.png"
+
         move_log_dict = self.sim_visualizer.round_bots_to_move_log_dict(finished_bots)
 
-        self.sim_visualizer.make_round_report(round_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, figure_file)
+        fig = self.sim_visualizer.make_round_report(round_stats, move_log_dict, raw_genomes_by_bot_name, 5, 3, make_figures)
+        if make_figures:
+            figure_file = f"{fig_dir}/figures/round_{round_number}_report.png"
+            fig.write_image(figure_file)
+            current_figure_file = f"{fig_dir}/figures/most_recent_report.png"
+            fig.write_image(current_figure_file)
 
         stats = ['mean_net_diff', 'mean_best_diff', 'mean_avg_diff']
         bots_for_leaderboard = self.sim_visualizer.get_bots_to_display(stats, round_stats, move_log_dict, raw_genomes_by_bot_name, 20, 3)
@@ -186,20 +189,20 @@ class leaderboard:
 
         self.names_by_genome = {}
 
-    def add_round(self, round_num, top_bots_by_stat, genome_by_bot_name):
+    def add_round(self, round_num, top_bots_by_stat, genome_by_bot_name, genome_list_file=None):
 
         round_data = {}
         for stat in self.stats:
             round_data[stat] = []
             already_ranked_genomes = set()
+
             for i in range(len(top_bots_by_stat[stat])):
-                
                 b = top_bots_by_stat[stat][i]
                 g = genome_by_bot_name[b]
                 if not g in already_ranked_genomes:
 
                     if not g in self.names_by_genome:
-                        name = f"g_r{round_num}_p{i}"
+                        name = f"round{round_num}_place{i}"
                         self.names_by_genome[g] = name
                     else:
                         name = self.names_by_genome[g]
@@ -208,6 +211,11 @@ class leaderboard:
                     round_data[stat].append(name)
         
         self.leaders_per_round.append(round_data)
+
+        if genome_list_file:
+            with open(genome_list_file) as glf:
+                for g in already_ranked_genomes:
+                    print(f"{self.names_by_genome[g]}\t{g}", file=glf)
 
     def write_leader_summary(self, outfile):
 
@@ -233,11 +241,12 @@ if __name__ == "__main__":
     random.seed(11)
     np.random.seed(11)
     lboard = leaderboard()
+    base_out_dir = "/var/www/html/organism"
 
-    report_at_round = 2
+    report_at_round = 2500
 
     round = 0
-    sim = evo_sim(2500, 21)
+    sim = evo_sim(2000, 9)
     sim.generate_random_genomes()
 
     round_results = sim.run_round(round, make_figures=True)
@@ -251,10 +260,11 @@ if __name__ == "__main__":
 
     lboard.write_leader_summary(f"figures/leaderboard_{round}.tsv")
   
-    for round in range(1, 20000):
+    rounds = int(10**9)
+    for round in range(1, rounds):
 
         make_figs = False
-        if round == report_at_round:
+        if round % report_at_round == 0 or round == rounds - 1:
             make_figs = True
 
         sim.set_genomes_from_list(offspring)
@@ -263,15 +273,19 @@ if __name__ == "__main__":
         top_bots_by_stat = round_results["top_scoring_bots_by_stat"]
         genome_by_bot_name = round_results["genome_by_bot_name"]
 
-        print(f"len offspring: {len(offspring)}")
-        print(f"len genome_by_bot_name: {len(genome_by_bot_name)}")
+        genome_list_file = None
+        if round > rounds * .9 and round % 100 == 0:
+            genome_list_file = f"{base_out_dir}/figures/leaderboard_{round}.tsv"
 
-        lboard.add_round(round, top_bots_by_stat, genome_by_bot_name)
+        lboard.add_round(round, top_bots_by_stat, genome_by_bot_name, genome_list_file)
 
-        if round == report_at_round * 10:
-            lboard.write_leader_summary(f"figures/leaderboard_{round}.tsv")
+        if round % report_at_round == 0:
+            lboard.write_leader_summary(f"{base_out_dir}/figures/leaderboard_{round}.tsv")
 
-        if make_figs:
-            report_at_round *= 2
+        lboard.write_leader_summary(f"{base_out_dir}/figures/leaderboard_current.tsv")
+    
+        with open(f"{base_out_dir}/figures/names_by_genome.txt", 'w') as nbg:
+            for g in lboard.names_by_genome:
+                print(f"{lboard.names_by_genome[g][0]}\t{g}")
 
 

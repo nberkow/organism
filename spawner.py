@@ -64,11 +64,11 @@ class spawner:
 
         n = top_percent * total_genomes
 
-        print("\nspawning new round:\n"
+        print("\nspawning new round:\n" + \
               f"input genomes:\t{total_genomes}\n" + \
               f"top %:\t\t{top_percent}\n" + \
               f"n:\t\t{n}\n"
-              )
+        )
 
         parent_genomes = get_higest_scoring_genomes_across_stats(round_stats, stats, n)
         print(f"parents:\t{len(parent_genomes)}")
@@ -89,12 +89,14 @@ class spawner:
         mutated_genomes_lists = []
         offspring_genomes = set(parent_genomes)
         spawn_number = int(n/len(parent_genomes)) + 2
+        print(f"carrying {len(parent_genomes)} ancestors over to next generation")
 
         for g in parent_genomes:
             mutated_genomes_lists.append(self.mutate(g, spawn_number, mut_params))
             
         i = 0
         while i < spawn_number and len(offspring_genomes) < n:
+            print("selecting offspring")
             j = 0
             while j < len(mutated_genomes_lists) and len(offspring_genomes) < n:
                 offspring_genomes.add(mutated_genomes_lists[j][i])
